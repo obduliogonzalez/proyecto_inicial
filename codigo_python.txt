@@ -1,0 +1,302 @@
+##### archivo main.py ################
+
+import os
+import pandas as pd
+import numpy as np
+import seaborn as sns
+import matplotlib.pyplot as plt
+from sklearn.preprocessing import StandardScaler, MinMaxScaler
+
+# Preguntar al usuario el nombre del archivo CSV
+file_name = input("Por favor, introduce el nombre del archivo CSV (con extensión): ")    #### colocar cuando solicite players_XX.csv
+
+# Define una variable para el año
+year = 2015
+
+# Crear una carpeta para guardar los archivos generados
+output_folder = "output_files"
+if not os.path.exists(output_folder):
+    os.makedirs(output_folder)
+
+# Cargar los datos
+df = pd.read_csv(file_name)
+
+
+## manejo de errores
+try:
+    df = pd.read_csv(file_name)
+except Exception as e:
+    print(f"Error al cargar el archivo CSV: {e}")
+    exit()
+
+
+# Inspección de los datos
+print("Información general:")
+print(df.info())  # Información general
+
+print("\nEstadísticas descriptivas:")
+print(df.describe())  # Estadísticas descriptivas
+
+# Eliminar duplicados
+df.drop_duplicates(inplace=True)
+print("\nDatos después de eliminar duplicados:")
+print(df.info())
+
+# Manejar valores nulos
+print("\nValores nulos por columna:")
+print(df.isnull().sum())
+
+if 'age' in df.columns:
+    df['age'].fillna(df['age'].mean(), inplace=True)
+df.dropna(subset=['overall', 'preferred_foot'], inplace=True)
+
+print("\nDatos después de manejar valores nulos:")
+print(df.info())
+
+# Corregir formatos inconsistentes
+if 'preferred_foot' in df.columns:
+    df['preferred_foot'] = df['preferred_foot'].str.capitalize()
+
+if 'birth_date' in df.columns:
+    df['birth_date'] = pd.to_datetime(df['birth_date'], errors='coerce')
+
+print("\nDatos después de corregir formatos y validar fechas:")
+print(df.info())
+
+# Guardar el DataFrame limpio en un nuevo archivo CSV
+df.to_csv(os.path.join(output_folder, f'{file_name}_clean.csv'), index=False)
+
+# Crear nuevas variables
+# Ejemplo: Crear una nueva variable 'age_group' basada en la edad
+if 'age' in df.columns:
+    bins = [0, 20, 25, 30, 35, 100]
+    labels = ['<20', '20-25', '25-30', '30-35', '35+']
+    df['age_group'] = pd.cut(df['age'], bins=bins, labels=labels)
+
+# Reestructurar los datos
+# Ejemplo: Convertir de formato ancho a formato largo
+if 'player_positions' in df.columns:
+    df_long = df.melt(id_vars=['short_name', 'age', 'overall'], 
+                      value_vars=['player_positions'], 
+                      var_name='variable', 
+                      value_name='value')
+
+# Documentar el proceso
+print("\nDatos después de la transformación:")
+print(df.info())
+print("\nDatos en formato largo:")
+print(df_long.head())
+
+# Guardar el DataFrame transformado en un nuevo archivo CSV
+df.to_csv(os.path.join(output_folder, f'{file_name}_formed.csv'), index=False)
+df_long.to_csv(os.path.join(output_folder, f'{file_name}_long.csv'), index=False)
+
+# Normalización y escalado
+scaler = StandardScaler()
+min_max_scaler = MinMaxScaler()
+
+# Seleccionar columnas numéricas para normalización y escalado
+numeric_columns = df.select_dtypes(include=[np.number]).columns.tolist()
+
+# Aplicar normalización
+df[numeric_columns] = scaler.fit_transform(df[numeric_columns])
+
+# Guardar el DataFrame normalizado en un nuevo archivo CSV
+df.to_csv(os.path.join(output_folder, f'{file_name}_normalized.csv'), index=False)
+
+# Aplicar escalado
+df[numeric_columns] = min_max_scaler.fit_transform(df[numeric_columns])
+
+# Guardar el DataFrame escalado en un nuevo archivo CSV
+df.to_csv(os.path.join(output_folder, f'{file_name}_scaled.csv'), index=False)
+
+# Verificar si el DataFrame no está vacío antes de graficar
+if not df.empty:
+    # Visualización de la distribución de las variables numéricas
+    plt.figure(figsize=(15, 10))
+    df.hist(bins=30, figsize=(20, 15), color='blue', edgecolor='black')
+    plt.tight_layout()
+    plt.savefig(os.path.join(output_folder, 'distribution_histogram.png'))
+    plt.show()
+
+    # Visualización de la correlación entre las variables
+    plt.figure(figsize=(15, 10))
+    correlation_matrix = df.corr()
+    sns.heatmap(correlation_matrix, annot=True, cmap='coolwarm')
+    plt.title(f'Matriz de correlación ({year})')
+    plt.savefig(os.path.join(output_folder, 'correlation_matrix.png'))
+    plt.show()
+
+    # Visualización de algunas variables específicas
+    plt.figure(figsize=(15, 10))
+    sns.boxplot(x='preferred_foot', y='overall', data=df)
+    plt.title(f'Distribución de la calificación general por pie preferido ({year})')
+    plt.savefig(os.path.join(output_folder, 'boxplot_preferred_foot.png'))
+    plt.show()
+
+    plt.figure(figsize=(15, 10))
+    sns.scatterplot(x='age', y='overall', hue='preferred_foot', data=df)
+    plt.title('Calificación general vs Edad ({year})')
+    plt.savefig(os.path.join(output_folder, 'scatterplot_age_overall.png'))
+    plt.show()
+
+    plt.figure(figsize=(15, 10))
+    sns.violinplot(x='player_positions', y='overall', data=df)
+    plt.title(f'Distribución de la calificación general por posición ({year})')
+    plt.xticks(rotation=90)
+    plt.savefig(os.path.join(output_folder, 'violinplot_positions.png'))
+    plt.show()
+    
+    
+
+else:
+    print("El DataFrame está vacío. No se pueden generar gráficos.")
+
+
+
+###### ARCHIVO pruebas.py  #########
+
+#### parte adicional
+
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+import seaborn as sns
+
+# Cargar el archivo CSV
+df = pd.read_csv('players_15.csv')     #### cambiar 15, 16, 17, 18, 19, 20
+
+# Define una variable para el año
+year = 2015   #### cambiar 2015, 2016, 2017, 2018, 2019, 2020
+
+# Mostrar las primeras filas para entender el contenido
+print("Primeras filas del DataFrame:")
+print(df.head())
+
+# Eliminar columnas no numéricas innecesarias
+df.drop(['player_url', 'short_name', 'long_name'], axis=1, inplace=True, errors='ignore')
+
+# Convertir columnas que deberían ser numéricas
+numeric_columns = ['value_eur', 'wage_eur', 'contract_valid_until', 'age', 'overall', 'potential']
+for col in numeric_columns:
+    if col in df.columns:
+        df[col] = pd.to_numeric(df[col], errors='coerce')
+
+# Convertir columnas de fechas al tipo datetime
+if 'birth_date' in df.columns:
+    df['birth_date'] = pd.to_datetime(df['birth_date'], errors='coerce')
+
+# Rellenar valores nulos en las columnas numéricas con la mediana
+numeric_df = df.select_dtypes(include=[np.number])  # Seleccionamos solo columnas numéricas
+df[numeric_df.columns] = numeric_df.fillna(numeric_df.median())
+
+# Verificar si hay columnas numéricas después del filtrado
+print("\nDatos después de manejar valores nulos:")
+print(df.info())
+
+# Mostrar las primeras filas después de la limpieza
+print("\nPrimeras filas después de la limpieza:")
+print(df.head())
+
+plt.figure(figsize=(10, 6))
+sns.histplot(df['overall'], bins=20, kde=True, color='blue')
+plt.title(f'Distribución de la Calificación General de los Jugadores ({year})')
+plt.xlabel('Calificación General')
+plt.ylabel('Frecuencia')
+plt.show()
+
+
+##### Distribución de las calificaciones y el potencial
+plt.figure(figsize=(10, 6))
+sns.histplot(df['potential'], bins=20, kde=True, color='green')
+plt.title(f'Distribución del Potencial de los Jugadores ({year})')
+plt.xlabel('Potencial')
+plt.ylabel('Frecuencia')
+plt.show()
+
+##### relacion entre edad y calificacion general
+
+plt.figure(figsize=(10, 6))
+sns.scatterplot(x='age', y='overall', data=df, hue='club', alpha=0.7)
+plt.title(f'Relación entre Edad y Calificación General ({year})')
+plt.xlabel('Edad')
+plt.ylabel('Calificación General')
+plt.legend(loc='upper right')
+plt.show()
+
+
+# Seleccionar solo las columnas numéricas
+numeric_df = df.select_dtypes(include=['float64', 'int64'])
+
+# Verificar las columnas seleccionadas
+print("Columnas numéricas seleccionadas:")
+print(numeric_df.columns)
+
+# Calcular la matriz de correlación
+correlation_matrix = numeric_df.corr()
+
+
+plt.figure(figsize=(12, 8))
+sns.heatmap(correlation_matrix, annot=True, cmap='coolwarm', fmt=".2f")
+plt.title(f'Matriz de Correlación ({year})')
+plt.show()
+
+# Rellenar valores nulos con la mediana de cada columna
+numeric_df.fillna(numeric_df.median(), inplace=True)
+
+
+# Convertir la columna 'dob' a formato datetime (si existe)
+if 'dob' in df.columns:
+    df['dob'] = pd.to_datetime(df['dob'], errors='coerce')
+
+# Filtrar solo las columnas numéricas
+numeric_df = df.select_dtypes(include=['number'])
+
+# Verificar las columnas seleccionadas para asegurarte de que son numéricas
+print("Columnas numéricas seleccionadas:")
+print(numeric_df.columns)
+
+
+# Rellenar los valores NaN con la mediana de cada columna
+numeric_df.fillna(numeric_df.median(), inplace=True)
+
+print("Tipos de datos de las columnas:")
+print(df.dtypes)
+
+
+# Filtra solo las columnas que son numéricas
+numeric_df = df.select_dtypes(include=['int64', 'float64'])
+
+# Asegúrate de que no haya valores nulos en las columnas numéricas
+numeric_df = numeric_df.fillna(numeric_df.median())
+
+# Verifica qué columnas se seleccionaron
+print("\nColumnas seleccionadas para la correlación:")
+print(numeric_df.columns)
+
+
+
+######Gráficos de violín por posiciones
+
+plt.figure(figsize=(12, 6))
+sns.violinplot(x='player_positions', y='overall', data=df, inner='quartile')
+plt.xticks(rotation=90)
+plt.title(f'Distribución de la Calificación por Posiciones ({year})')
+plt.xlabel('Posición')
+plt.ylabel('Calificación General')
+plt.show()
+
+
+####  Análisis de Valor y Salario
+
+plt.figure(figsize=(10, 6))
+sns.scatterplot(x='value_eur', y='wage_eur', data=df)
+plt.title(f'Relación entre Valor de Mercado y Salario ({year})')
+plt.xlabel('Valor (€)')
+plt.ylabel('Salario (€)')
+plt.show()
+
+
+
+
+
